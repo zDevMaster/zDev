@@ -1,0 +1,58 @@
+{
+  "BaseComponent": {
+    "TypeName": "DecoratorPluginDemo.Plugins.TextProcessorComponent, DecoratorPluginDemo",
+    "Name": "文本处理器",
+    "Parameters": {
+      "name": "核心文本处理器"
+    }
+  },
+  "Decorators": [
+    {
+      "TypeName": "DecoratorPluginDemo.Decorators.TrimDecorator, DecoratorPluginDemo",
+      "Name": "修剪装饰器",
+      "Enabled": true,
+      "Priority": 10,
+      "Parameters": {
+        "name": "空格修剪器"
+      }
+    },
+    {
+      "TypeName": "DecoratorPluginDemo.Decorators.CacheDecorator, DecoratorPluginDemo",
+      "Name": "缓存装饰器",
+      "Enabled": true,
+      "Priority": 20,
+      "Parameters": {
+        "name": "智能缓存",
+        "maxCacheSize": 50
+      }
+    },
+    {
+      "TypeName": "DecoratorPluginDemo.Decorators.PerformanceDecorator, DecoratorPluginDemo",
+      "Name": "性能监控装饰器",
+      "Enabled": true,
+      "Priority": 30,
+      "Parameters": {
+        "name": "性能分析器"
+      }
+    },
+    {
+      "TypeName": "DecoratorPluginDemo.Decorators.LoggingDecorator, DecoratorPluginDemo",
+      "Name": "日志装饰器",
+      "Enabled": true,
+      "Priority": 40,
+      "Parameters": {
+        "name": "详细日志",
+        "logTimestamp": true
+      }
+    },
+    {
+      "TypeName": "DecoratorPluginDemo.Decorators.UpperCaseDecorator, DecoratorPluginDemo",
+      "Name": "大写转换装饰器",
+      "Enabled": true,
+      "Priority": 50,
+      "Parameters": {
+        "name": "大写转换器"
+      }
+    }
+  ]
+}

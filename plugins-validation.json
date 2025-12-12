@@ -1,0 +1,31 @@
+{
+  "BaseComponent": {
+    "TypeName": "DecoratorPluginDemo.Plugins.DataValidatorComponent, DecoratorPluginDemo",
+    "Name": "数据验证器",
+    "Parameters": {
+      "name": "严格验证器",
+      "minLength": 5
+    }
+  },
+  "Decorators": [
+    {
+      "TypeName": "DecoratorPluginDemo.Decorators.TrimDecorator, DecoratorPluginDemo",
+      "Name": "修剪装饰器",
+      "Enabled": true,
+      "Priority": 10,
+      "Parameters": {
+        "name": "输入清理器"
+      }
+    },
+    {
+      "TypeName": "DecoratorPluginDemo.Decorators.LoggingDecorator, DecoratorPluginDemo",
+      "Name": "日志装饰器",
+      "Enabled": true,
+      "Priority": 20,
+      "Parameters": {
+        "name": "验证日志",
+        "logTimestamp": true
+      }
+    }
+  ]
+}
