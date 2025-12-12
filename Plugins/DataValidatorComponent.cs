@@ -1,0 +1,28 @@
+using DecoratorPluginDemo.Core;
+
+namespace DecoratorPluginDemo.Plugins;
+
+/// <summary>
+/// 数据验证器组件 - 另一个基础组件示例
+/// </summary>
+public class DataValidatorComponent : ComponentBase
+{
+    private readonly int _minLength;
+
+    public DataValidatorComponent(string name = "数据验证器", int minLength = 0) : base(name)
+    {
+        _minLength = minLength;
+    }
+
+    public override string Execute(string input)
+    {
+        Console.WriteLine($"[{ComponentName}] 验证输入 (最小长度: {_minLength})");
+        
+        if (input.Length < _minLength)
+        {
+            throw new ArgumentException($"输入长度不足，最小长度为 {_minLength}");
+        }
+        
+        return input;
+    }
+}

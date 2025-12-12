@@ -1,0 +1,30 @@
+{
+  "BaseComponent": {
+    "TypeName": "DecoratorPluginDemo.Plugins.TextProcessorComponent, DecoratorPluginDemo",
+    "Name": "简单文本处理器",
+    "Parameters": {
+      "name": "基础处理器"
+    }
+  },
+  "Decorators": [
+    {
+      "TypeName": "DecoratorPluginDemo.Decorators.LoggingDecorator, DecoratorPluginDemo",
+      "Name": "日志装饰器",
+      "Enabled": true,
+      "Priority": 10,
+      "Parameters": {
+        "name": "简单日志",
+        "logTimestamp": false
+      }
+    },
+    {
+      "TypeName": "DecoratorPluginDemo.Decorators.UpperCaseDecorator, DecoratorPluginDemo",
+      "Name": "大写转换装饰器",
+      "Enabled": true,
+      "Priority": 20,
+      "Parameters": {
+        "name": "大写转换"
+      }
+    }
+  ]
+}
