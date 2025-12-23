@@ -4,8 +4,9 @@ namespace DecoratorPluginDemo.Plugins;
 
 /// <summary>
 /// 数据验证器组件 - 另一个基础组件示例
+/// 同时实现 IComponent（向后兼容）和 IPlugin<string>（新泛型接口）
 /// </summary>
-public class DataValidatorComponent : ComponentBase
+public class DataValidatorComponent : PluginBase<string>, IComponent
 {
     private readonly int _minLength;
 
@@ -16,7 +17,7 @@ public class DataValidatorComponent : ComponentBase
 
     public override string Execute(string input)
     {
-        Console.WriteLine($"[{ComponentName}] 验证输入 (最小长度: {_minLength})");
+        Console.WriteLine($"[{PluginName}] 验证输入 (最小长度: {_minLength})");
         
         if (input.Length < _minLength)
         {

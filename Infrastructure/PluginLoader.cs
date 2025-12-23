@@ -6,9 +6,10 @@ using Newtonsoft.Json;
 namespace DecoratorPluginDemo.Infrastructure;
 
 /// <summary>
-/// 插件加载器 - 负责从JSON配置加载并构建装饰器链
+/// 泛型插件加载器 - 负责从JSON配置加载并构建装饰器链
 /// </summary>
-public class PluginLoader
+/// <typeparam name="T">插件接口类型，必须实现 IPlugin 接口</typeparam>
+public class PluginLoader<T> where T : class
 {
     private readonly string _configPath;
 
@@ -18,9 +19,9 @@ public class PluginLoader
     }
 
     /// <summary>
-    /// 从配置文件加载并构建组件
+    /// 从配置文件加载并构建插件
     /// </summary>
-    public IComponent LoadComponent()
+    public T LoadPlugin()
     {
         // 读取配置文件
         var config = LoadConfiguration();
@@ -30,16 +31,16 @@ public class PluginLoader
             throw new InvalidOperationException("未配置基础组件");
         }
 
-        // 创建基础组件
-        var component = CreateComponent(config.BaseComponent);
+        // 创建基础插件
+        var plugin = CreatePlugin(config.BaseComponent);
         
         // 应用装饰器
         if (config.Decorators != null && config.Decorators.Any())
         {
-            component = ApplyDecorators(component, config.Decorators);
+            plugin = ApplyDecorators(plugin, config.Decorators);
         }
 
-        return component;
+        return plugin;
     }
 
     /// <summary>
@@ -64,9 +65,9 @@ public class PluginLoader
     }
 
     /// <summary>
-    /// 创建组件实例
+    /// 创建插件实例
     /// </summary>
-    private IComponent CreateComponent(ComponentConfig config)
+    private T CreatePlugin(ComponentConfig config)
     {
         if (string.IsNullOrEmpty(config.TypeName))
         {
@@ -84,18 +85,18 @@ public class PluginLoader
         
         var instance = Activator.CreateInstance(type, parameters);
         
-        if (instance is not IComponent component)
+        if (instance is not T plugin)
         {
-            throw new InvalidOperationException($"类型 {config.TypeName} 未实现 IComponent 接口");
+            throw new InvalidOperationException($"类型 {config.TypeName} 未实现 {typeof(T).Name} 接口");
         }
 
-        return component;
+        return plugin;
     }
 
     /// <summary>
     /// 应用装饰器链
     /// </summary>
-    private IComponent ApplyDecorators(IComponent baseComponent, List<DecoratorConfig> decoratorConfigs)
+    private T ApplyDecorators(T basePlugin, List<DecoratorConfig> decoratorConfigs)
     {
         // 过滤启用的装饰器并按优先级排序
         var enabledDecorators = decoratorConfigs
@@ -103,7 +104,7 @@ public class PluginLoader
             .OrderBy(d => d.Priority)
             .ToList();
 
-        var currentComponent = baseComponent;
+        var currentPlugin = basePlugin;
 
         foreach (var decoratorConfig in enabledDecorators)
         {
@@ -122,25 +123,33 @@ public class PluginLoader
                     continue;
                 }
 
-                // 装饰器的第一个参数必须是 IComponent
-                var parameters = new List<object> { currentComponent };
+                // 选择最佳构造函数（优先选择第一个参数是 T 类型或其兼容类型的构造函数）
+                var constructor = SelectBestConstructor(type, typeof(T));
+                if (constructor == null)
+                {
+                    Console.WriteLine($"警告: 无法找到适合的构造函数 {decoratorConfig.TypeName}，已跳过");
+                    continue;
+                }
+
+                // 装饰器的第一个参数必须是插件接口类型
+                var parameters = new List<object> { currentPlugin };
                 
                 // 添加其他构造参数
                 if (decoratorConfig.Parameters != null)
                 {
-                    var constructorParams = PrepareConstructorParameters(type, decoratorConfig.Parameters, skipFirst: true);
+                    var constructorParams = PrepareConstructorParametersForConstructor(constructor, decoratorConfig.Parameters, skipFirst: true);
                     parameters.AddRange(constructorParams);
                 }
 
-                var decorator = Activator.CreateInstance(type, parameters.ToArray());
+                var decorator = constructor.Invoke(parameters.ToArray());
                 
-                if (decorator is not IComponent decoratorComponent)
+                if (decorator is not T decoratorPlugin)
                 {
-                    Console.WriteLine($"警告: 类型 {decoratorConfig.TypeName} 未实现 IComponent 接口，已跳过");
+                    Console.WriteLine($"警告: 类型 {decoratorConfig.TypeName} 未实现 {typeof(T).Name} 接口，已跳过");
                     continue;
                 }
 
-                currentComponent = decoratorComponent;
+                currentPlugin = decoratorPlugin;
                 Console.WriteLine($"已应用装饰器: {decoratorConfig.Name ?? decoratorConfig.TypeName}");
             }
             catch (Exception ex)
@@ -149,7 +158,73 @@ public class PluginLoader
             }
         }
 
-        return currentComponent;
+        return currentPlugin;
+    }
+
+    /// <summary>
+    /// 选择最佳构造函数
+    /// </summary>
+    private ConstructorInfo? SelectBestConstructor(Type type, Type firstParamType)
+    {
+        var constructors = type.GetConstructors();
+        
+        // 优先选择第一个参数精确匹配 T 类型的构造函数
+        var exactMatch = constructors.FirstOrDefault(c =>
+        {
+            var parameters = c.GetParameters();
+            return parameters.Length > 0 && parameters[0].ParameterType == firstParamType;
+        });
+
+        if (exactMatch != null)
+            return exactMatch;
+
+        // 其次选择第一个参数是 T 的基类或接口的构造函数
+        var compatibleMatch = constructors.FirstOrDefault(c =>
+        {
+            var parameters = c.GetParameters();
+            return parameters.Length > 0 && parameters[0].ParameterType.IsAssignableFrom(firstParamType);
+        });
+
+        return compatibleMatch ?? constructors.FirstOrDefault();
+    }
+
+    /// <summary>
+    /// 为指定构造函数准备参数
+    /// </summary>
+    private object[] PrepareConstructorParametersForConstructor(ConstructorInfo constructor, Dictionary<string, object>? configParameters, bool skipFirst = false)
+    {
+        var parameters = constructor.GetParameters();
+
+        if (skipFirst)
+        {
+            parameters = parameters.Skip(1).ToArray();
+        }
+
+        var args = new List<object>();
+
+        foreach (var param in parameters)
+        {
+            if (configParameters != null && configParameters.TryGetValue(param.Name ?? "", out var value))
+            {
+                // 类型转换
+                var convertedValue = ConvertValue(value, param.ParameterType);
+                args.Add(convertedValue!);
+            }
+            else if (param.HasDefaultValue)
+            {
+                args.Add(param.DefaultValue!);
+            }
+            else if (param.ParameterType.IsValueType)
+            {
+                args.Add(Activator.CreateInstance(param.ParameterType)!);
+            }
+            else
+            {
+                args.Add(null!);
+            }
+        }
+
+        return args.ToArray();
     }
 
     /// <summary>
@@ -179,7 +254,7 @@ public class PluginLoader
             if (configParameters != null && configParameters.TryGetValue(param.Name ?? "", out var value))
             {
                 // 类型转换
-                var convertedValue = Convert.ChangeType(value, param.ParameterType);
+                var convertedValue = ConvertValue(value, param.ParameterType);
                 args.Add(convertedValue!);
             }
             else if (param.HasDefaultValue)
@@ -198,4 +273,52 @@ public class PluginLoader
 
         return args.ToArray();
     }
+
+    /// <summary>
+    /// 类型转换辅助方法
+    /// </summary>
+    private object? ConvertValue(object value, Type targetType)
+    {
+        if (value == null)
+            return null;
+
+        // 处理 Newtonsoft.Json 的 JValue/JToken
+        if (value is Newtonsoft.Json.Linq.JToken jToken)
+        {
+            return jToken.ToObject(targetType);
+        }
+
+        // 常规类型转换
+        return Convert.ChangeType(value, targetType);
+    }
+}
+
+/// <summary>
+/// 字符串插件加载器 - 向后兼容原有 PluginLoader
+/// </summary>
+public class PluginLoader : PluginLoader<IPlugin<string>>
+{
+    public PluginLoader(string configPath = "plugins.json") : base(configPath)
+    {
+    }
+
+    /// <summary>
+    /// 从配置文件加载并构建组件（向后兼容）
+    /// </summary>
+    public IPlugin<string> LoadComponent() => LoadPlugin();
+}
+
+/// <summary>
+/// IComponent 专用加载器 - 完全向后兼容
+/// </summary>
+public class ComponentLoader : PluginLoader<IComponent>
+{
+    public ComponentLoader(string configPath = "plugins.json") : base(configPath)
+    {
+    }
+
+    /// <summary>
+    /// 从配置文件加载并构建组件
+    /// </summary>
+    public IComponent LoadComponent() => LoadPlugin();
 }

@@ -1,26 +1,28 @@
 namespace DecoratorPluginDemo.Core;
 
 /// <summary>
-/// 装饰器基类 - 实现装饰器模式的核心逻辑
+/// 泛型装饰器基类 - 实现装饰器模式的核心逻辑
 /// </summary>
-public abstract class DecoratorBase : IComponent
+/// <typeparam name="TInput">输入类型</typeparam>
+/// <typeparam name="TOutput">输出类型</typeparam>
+public abstract class DecoratorBase<TInput, TOutput> : IPlugin<TInput, TOutput>
 {
-    protected IComponent _wrappedComponent;
+    protected IPlugin<TInput, TOutput> _wrappedPlugin;
     protected readonly string DecoratorName;
 
-    protected DecoratorBase(IComponent component, string decoratorName)
+    protected DecoratorBase(IPlugin<TInput, TOutput> plugin, string decoratorName)
     {
-        _wrappedComponent = component;
+        _wrappedPlugin = plugin;
         DecoratorName = decoratorName;
     }
 
-    public virtual string Execute(string input)
+    public virtual TOutput Execute(TInput input)
     {
         // 前置处理
-        string processedInput = PreProcess(input);
+        TInput processedInput = PreProcess(input);
         
-        // 调用被包装组件
-        string result = _wrappedComponent.Execute(processedInput);
+        // 调用被包装插件
+        TOutput result = _wrappedPlugin.Execute(processedInput);
         
         // 后置处理
         return PostProcess(result);
@@ -28,13 +30,13 @@ public abstract class DecoratorBase : IComponent
 
     public virtual string GetName()
     {
-        return $"{DecoratorName}({_wrappedComponent.GetName()})";
+        return $"{DecoratorName}({_wrappedPlugin.GetName()})";
     }
 
     /// <summary>
     /// 前置处理
     /// </summary>
-    protected virtual string PreProcess(string input)
+    protected virtual TInput PreProcess(TInput input)
     {
         return input;
     }
@@ -42,8 +44,53 @@ public abstract class DecoratorBase : IComponent
     /// <summary>
     /// 后置处理
     /// </summary>
-    protected virtual string PostProcess(string output)
+    protected virtual TOutput PostProcess(TOutput output)
     {
         return output;
     }
+}
+
+/// <summary>
+/// 简化版装饰器基类 - 输入输出类型相同
+/// </summary>
+/// <typeparam name="T">输入输出类型</typeparam>
+public abstract class DecoratorBase<T> : DecoratorBase<T, T>, IPlugin<T>
+{
+    protected DecoratorBase(IPlugin<T> plugin, string decoratorName) 
+        : base(plugin, decoratorName)
+    {
+    }
+}
+
+/// <summary>
+/// 字符串装饰器基类 - 向后兼容原有 DecoratorBase
+/// </summary>
+public abstract class StringDecoratorBase : DecoratorBase<string>, IStringPlugin
+{
+    protected StringDecoratorBase(IPlugin<string> plugin, string decoratorName) 
+        : base(plugin, decoratorName)
+    {
+    }
+    
+    // 支持使用 IComponent 构造（向后兼容）
+    protected StringDecoratorBase(IComponent component, string decoratorName) 
+        : base(new ComponentAdapter(component), decoratorName)
+    {
+    }
+}
+
+/// <summary>
+/// IComponent 到 IPlugin<string> 的适配器
+/// </summary>
+internal class ComponentAdapter : IPlugin<string>
+{
+    private readonly IComponent _component;
+
+    public ComponentAdapter(IComponent component)
+    {
+        _component = component;
+    }
+
+    public string Execute(string input) => _component.Execute(input);
+    public string GetName() => _component.GetName();
 }
