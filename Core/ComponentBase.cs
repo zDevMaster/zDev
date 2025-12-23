@@ -2,20 +2,13 @@ namespace DecoratorPluginDemo.Core;
 
 /// <summary>
 /// 组件基类 - 提供基础实现
+/// 继承自泛型 PluginBase<string>，保持向后兼容
 /// </summary>
-public abstract class ComponentBase : IComponent
+public abstract class ComponentBase : PluginBase<string>, IComponent
 {
-    protected readonly string ComponentName;
+    protected string ComponentName => PluginName;
 
-    protected ComponentBase(string componentName)
+    protected ComponentBase(string componentName) : base(componentName)
     {
-        ComponentName = componentName;
-    }
-
-    public abstract string Execute(string input);
-
-    public virtual string GetName()
-    {
-        return ComponentName;
     }
 }
